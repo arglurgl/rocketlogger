@@ -43,7 +43,13 @@ Adafruit_DotStar rgbled(NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BGR);
 void setup(void)
 {
   Serial.begin(115200);
-  while ( !Serial ) delay(10);   // for nrf52840 with native usb
+  
+  // for nrf52840 with native usb, wait for Serial connection unless timeout happens
+  uint8_t tries = 0;
+  while ( (!Serial) && (tries < 200) ){
+    delay(10);   
+    tries++;
+  }
 
   Serial.println(F("Adafruit Bluefruit52 Controller App Example"));
   Serial.println(F("-------------------------------------------"));
