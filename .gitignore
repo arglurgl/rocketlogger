@@ -3,3 +3,8 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+platformio/.pio
+platformio/.vscode/.browse.c_cpp.db*
+platformio/.vscode/c_cpp_properties.json
+platformio/.vscode/launch.json
+platformio/.vscode/ipch
