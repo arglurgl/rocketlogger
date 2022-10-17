@@ -44,7 +44,8 @@ Adafruit_DotStar rgbled(NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BGR);
 
 //pressure sensor 
 #define BMP_CS A0
-#define SEALEVELPRESSURE_HPA (1013.25)
+float sealevel_pressure = 1023.8;
+float current_height = 50;
 Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
 
 void printBMP280Values(){
@@ -56,9 +57,15 @@ void printBMP280Values(){
     Serial.print(bmp.readPressure());
     Serial.println(" Pa");
 
-    Serial.print(F("Approx altitude = "));
-    Serial.print(bmp.readAltitude(SEALEVELPRESSURE_HPA)); /* Adjusted to local forecast! */
+    Serial.print(F("appr. relative height = "));
+    float rel_height =(bmp.readAltitude(sealevel_pressure)-current_height);
+    Serial.print(rel_height, 1); /* Adjusted to local forecast! */
     Serial.println(" m");
+
+    //LED for speed test
+    if  (rel_height > 0) rgbled.setPixelColor(0,0,64,0);
+    else rgbled.setPixelColor(0,64,0,0);
+    rgbled.show();
 
     Serial.println();
 }
@@ -122,8 +129,12 @@ void setup(void)
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
                   Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+                  Adafruit_BMP280::FILTER_OFF,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_1); /* Standby time. */
+
+  //calibrate sealevel pressure using current pressure and known height
+  float current_pressure = bmp.readPressure()/100.0;
+  sealevel_pressure = bmp.seaLevelForAltitude(current_height,current_pressure);
 }
 
 void startAdv(void)
@@ -162,8 +173,11 @@ void startAdv(void)
 /**************************************************************************/
 void loop(void)
 {
+  //poll sensor and print
+  printBMP280Values();
+  
   // Wait for new data to arrive
-  uint8_t len = readPacket(&bleuart, 500);
+  uint8_t len = readPacket(&bleuart, 10); // was 500 before speed test
   if (len == 0) return;
 
   // Got a packet!
@@ -186,8 +200,6 @@ void loop(void)
     Serial.print(green, HEX);
     if (blue < 0x10) Serial.print("0");
     Serial.println(blue, HEX);
-
-    printBMP280Values();
 
   }
 
