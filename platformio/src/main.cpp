@@ -18,6 +18,9 @@
 #include <Adafruit_DotStar.h>
 #include <SPI.h>
 #include <Adafruit_BMP280.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
 
 // OTA DFU service
 BLEDfu bledfu;
@@ -47,6 +50,9 @@ Adafruit_DotStar rgbled(NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BGR);
 float sealevel_pressure = 1023.8;
 float current_height = 50;
 Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
+
+//orientation/acceleration sensor BN0055
+Adafruit_BNO055 bno = Adafruit_BNO055(55,0x29); // you may need to adapt the address
 
 void printBMP280Values(){
     Serial.print(F("Temperature = "));
@@ -135,6 +141,20 @@ void setup(void)
   //calibrate sealevel pressure using current pressure and known height
   float current_pressure = bmp.readPressure()/100.0;
   sealevel_pressure = bmp.seaLevelForAltitude(current_height,current_pressure);
+
+  //orientation sensor
+  /* Initialise the sensor */
+  Serial.println("Setup orientation sensor");
+  if(!bno.begin())
+  {
+    /* There was a problem detecting the BNO055 ... check your connections */
+    Serial.println("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }  
+  delay(1000);    
+  bno.setExtCrystalUse(true);
+
+  Serial.println("Setup done");
 }
 
 void startAdv(void)
@@ -173,8 +193,24 @@ void startAdv(void)
 /**************************************************************************/
 void loop(void)
 {
-  //poll sensor and print
-  printBMP280Values();
+  //poll pressure sensor and print
+  //printBMP280Values();
+
+  //test orientation sensor
+  /* Get a new sensor event */ 
+  sensors_event_t event; 
+  bno.getEvent(&event);
+  
+  /* Display the floating point data */
+  Serial.print("X: ");
+  Serial.print(event.orientation.x, 4);
+  Serial.print("\tY: ");
+  Serial.print(event.orientation.y, 4);
+  Serial.print("\tZ: ");
+  Serial.print(event.orientation.z, 4);
+  Serial.println("");
+  
+  delay(100);
   
   // Wait for new data to arrive
   uint8_t len = readPacket(&bleuart, 10); // was 500 before speed test
