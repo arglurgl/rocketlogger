@@ -202,6 +202,7 @@ void loop(void)
   bno.getEvent(&event);
   
   /* Display the floating point data */
+  Serial.print("Orientation");
   Serial.print("X: ");
   Serial.print(event.orientation.x, 4);
   Serial.print("\tY: ");
@@ -209,10 +210,22 @@ void loop(void)
   Serial.print("\tZ: ");
   Serial.print(event.orientation.z, 4);
   Serial.println("");
+
+  bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
+  Serial.print("Gravity ");
+  Serial.print("X: ");
+  Serial.print(event.acceleration.x, 4);
+  Serial.print("\tY: ");
+  Serial.print(event.acceleration.y, 4);
+  Serial.print("\tZ: ");
+  Serial.print(event.acceleration.z, 4);
+  Serial.println("");
+
+  //bno.getSystemStatus
   
   delay(100);
   
-  // Wait for new data to arrive
+  // Wait for new BLE data to arrive
   uint8_t len = readPacket(&bleuart, 10); // was 500 before speed test
   if (len == 0) return;
 
