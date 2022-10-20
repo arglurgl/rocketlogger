@@ -33,8 +33,12 @@ uint8_t readPacket (BLEUart *ble_uart, uint16_t timeout);
 float   parsefloat (uint8_t *buffer);
 void    printHex   (const uint8_t * data, const uint32_t numBytes);
 
+//Function prototypes for packetcreator.h
+bool sendVector(BLEUart *ble_uart, uint8_t type, float x, float y, float z);
+#define PACKET_DATA_TYPE_ACC                 (1) //do proper header later
+
 // Packet buffer
-extern uint8_t packetbuffer[];
+extern uint8_t packetbuffer_receive[];
 
 // function declarations
 void startAdv(void);
@@ -53,6 +57,9 @@ Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
 
 //orientation/acceleration sensor BN0055
 Adafruit_BNO055 bno = Adafruit_BNO055(55,0x29); // you may need to adapt the address
+
+//for testing BLE data stream
+bool ble_stream = false;
 
 void printBMP280Values(){
     Serial.print(F("Temperature = "));
@@ -155,6 +162,8 @@ void setup(void)
   bno.setExtCrystalUse(true);
 
   Serial.println("Setup done");
+
+  bleuart.bufferTXD(true);
 }
 
 void startAdv(void)
@@ -198,45 +207,72 @@ void loop(void)
 
   //test orientation sensor
   /* Get a new sensor event */ 
-  sensors_event_t event; 
-  bno.getEvent(&event);
+  //sensors_event_t event; 
+  // bno.getEvent(&event);
   
-  /* Display the floating point data */
-  Serial.print("Orientation");
-  Serial.print("X: ");
-  Serial.print(event.orientation.x, 4);
-  Serial.print("\tY: ");
-  Serial.print(event.orientation.y, 4);
-  Serial.print("\tZ: ");
-  Serial.print(event.orientation.z, 4);
-  Serial.println("");
+  // /* Display the floating point data */
+  // Serial.print("Orientation");
+  // Serial.print("X: ");
+  // Serial.print(event.orientation.x, 4);
+  // Serial.print("\tY: ");
+  // Serial.print(event.orientation.y, 4);
+  // Serial.print("\tZ: ");
+  // Serial.print(event.orientation.z, 4);
+  // Serial.println("");
 
-  bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
-  Serial.print("Gravity ");
-  Serial.print("X: ");
-  Serial.print(event.acceleration.x, 4);
-  Serial.print("\tY: ");
-  Serial.print(event.acceleration.y, 4);
-  Serial.print("\tZ: ");
-  Serial.print(event.acceleration.z, 4);
-  Serial.println("");
+  //bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
+  // Serial.print("Gravity ");
+  // Serial.print("X: ");
+  // Serial.print(event.acceleration.x, 4);
+  // Serial.print("\tY: ");
+  // Serial.print(event.acceleration.y, 4);
+  // Serial.print("\tZ: ");
+  // Serial.print(event.acceleration.z, 4);
+  // Serial.println("");
 
   //bno.getSystemStatus
   
   delay(100);
+
+  if (ble_stream) {
+    sensors_event_t event; 
+    bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
+    Serial.print("Gravity ");
+    Serial.print("X: ");
+    Serial.print(event.acceleration.x, 4);
+    Serial.print("\tY: ");
+    Serial.print(event.acceleration.y, 4);
+    Serial.print("\tZ: ");
+    Serial.print(event.acceleration.z, 4);
+    Serial.println("");
+    sendVector(&bleuart, PACKET_DATA_TYPE_ACC, event.acceleration.x, event.acceleration.y, event.acceleration.z);
+    bleuart.flushTXD();
+  }
   
   // Wait for new BLE data to arrive
   uint8_t len = readPacket(&bleuart, 10); // was 500 before speed test
   if (len == 0) return;
 
   // Got a packet!
-  // printHex(packetbuffer, len);
+  // printHex(packetbuffer_receive, len);
+
+  // Task
+  if (packetbuffer_receive[1] == 'T') {
+    char task = packetbuffer_receive[2];
+    char subtask = packetbuffer_receive[3];
+    Serial.print ("Task "); Serial.print(task);
+    Serial.print ("-"); Serial.println(subtask);
+    if (task == 'S'){ // streaming
+      if (subtask == 'B') ble_stream = true; //begin
+      else if (subtask == 'E') ble_stream = false; //end
+    }
+  }
 
   // Color
-  if (packetbuffer[1] == 'C') {
-    uint8_t red = packetbuffer[2];
-    uint8_t green = packetbuffer[3];
-    uint8_t blue = packetbuffer[4];
+  if (packetbuffer_receive[1] == 'C') {
+    uint8_t red = packetbuffer_receive[2];
+    uint8_t green = packetbuffer_receive[3];
+    uint8_t blue = packetbuffer_receive[4];
 
     //set led
     rgbled.setPixelColor(0,red,green,blue);
@@ -253,9 +289,9 @@ void loop(void)
   }
 
   // Buttons
-  if (packetbuffer[1] == 'B') {
-    uint8_t buttnum = packetbuffer[2] - '0';
-    boolean pressed = packetbuffer[3] - '0';
+  if (packetbuffer_receive[1] == 'B') {
+    uint8_t buttnum = packetbuffer_receive[2] - '0';
+    boolean pressed = packetbuffer_receive[3] - '0';
     Serial.print ("Button "); Serial.print(buttnum);
     if (pressed) {
       Serial.println(" pressed");
@@ -265,11 +301,11 @@ void loop(void)
   }
 
   // GPS Location
-  if (packetbuffer[1] == 'L') {
+  if (packetbuffer_receive[1] == 'L') {
     float lat, lon, alt;
-    lat = parsefloat(packetbuffer+2);
-    lon = parsefloat(packetbuffer+6);
-    alt = parsefloat(packetbuffer+10);
+    lat = parsefloat(packetbuffer_receive+2);
+    lon = parsefloat(packetbuffer_receive+6);
+    alt = parsefloat(packetbuffer_receive+10);
     Serial.print("GPS Location\t");
     Serial.print("Lat: "); Serial.print(lat, 4); // 4 digits of precision!
     Serial.print('\t');
@@ -279,11 +315,11 @@ void loop(void)
   }
 
   // Accelerometer
-  if (packetbuffer[1] == 'A') {
+  if (packetbuffer_receive[1] == 'A') {
     float x, y, z;
-    x = parsefloat(packetbuffer+2);
-    y = parsefloat(packetbuffer+6);
-    z = parsefloat(packetbuffer+10);
+    x = parsefloat(packetbuffer_receive+2);
+    y = parsefloat(packetbuffer_receive+6);
+    z = parsefloat(packetbuffer_receive+10);
     Serial.print("Accel\t");
     Serial.print(x); Serial.print('\t');
     Serial.print(y); Serial.print('\t');
@@ -291,11 +327,11 @@ void loop(void)
   }
 
   // Magnetometer
-  if (packetbuffer[1] == 'M') {
+  if (packetbuffer_receive[1] == 'M') {
     float x, y, z;
-    x = parsefloat(packetbuffer+2);
-    y = parsefloat(packetbuffer+6);
-    z = parsefloat(packetbuffer+10);
+    x = parsefloat(packetbuffer_receive+2);
+    y = parsefloat(packetbuffer_receive+6);
+    z = parsefloat(packetbuffer_receive+10);
     Serial.print("Mag\t");
     Serial.print(x); Serial.print('\t');
     Serial.print(y); Serial.print('\t');
@@ -303,11 +339,11 @@ void loop(void)
   }
 
   // Gyroscope
-  if (packetbuffer[1] == 'G') {
+  if (packetbuffer_receive[1] == 'G') {
     float x, y, z;
-    x = parsefloat(packetbuffer+2);
-    y = parsefloat(packetbuffer+6);
-    z = parsefloat(packetbuffer+10);
+    x = parsefloat(packetbuffer_receive+2);
+    y = parsefloat(packetbuffer_receive+6);
+    z = parsefloat(packetbuffer_receive+10);
     Serial.print("Gyro\t");
     Serial.print(x); Serial.print('\t');
     Serial.print(y); Serial.print('\t');
@@ -315,12 +351,12 @@ void loop(void)
   }
 
   // Quaternions
-  if (packetbuffer[1] == 'Q') {
+  if (packetbuffer_receive[1] == 'Q') {
     float x, y, z, w;
-    x = parsefloat(packetbuffer+2);
-    y = parsefloat(packetbuffer+6);
-    z = parsefloat(packetbuffer+10);
-    w = parsefloat(packetbuffer+14);
+    x = parsefloat(packetbuffer_receive+2);
+    y = parsefloat(packetbuffer_receive+6);
+    z = parsefloat(packetbuffer_receive+10);
+    w = parsefloat(packetbuffer_receive+14);
     Serial.print("Quat\t");
     Serial.print(x); Serial.print('\t');
     Serial.print(y); Serial.print('\t');

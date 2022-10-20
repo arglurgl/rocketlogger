@@ -8,6 +8,7 @@
 #define PACKET_MAG_LEN                  (15)
 #define PACKET_QUAT_LEN                 (19)
 #define PACKET_BUTTON_LEN               (5)
+#define PACKET_TASK_LEN                 (5)
 #define PACKET_COLOR_LEN                (6)
 #define PACKET_LOCATION_LEN             (15)
 
@@ -16,7 +17,7 @@
 
 
 /* Buffer to hold incoming characters */
-uint8_t packetbuffer[READ_BUFSIZE+1];
+uint8_t packetbuffer_receive[READ_BUFSIZE+1];
 
 /**************************************************************************/
 /*!
@@ -71,23 +72,25 @@ uint8_t readPacket(BLEUart *ble_uart, uint16_t timeout)
 {
   uint16_t origtimeout = timeout, replyidx = 0;
 
-  memset(packetbuffer, 0, READ_BUFSIZE);
+  memset(packetbuffer_receive, 0, READ_BUFSIZE);
 
   while (timeout--) {
     if (replyidx >= 20) break;
-    if ((packetbuffer[1] == 'A') && (replyidx == PACKET_ACC_LEN))
+    if ((packetbuffer_receive[1] == 'A') && (replyidx == PACKET_ACC_LEN))
       break;
-    if ((packetbuffer[1] == 'G') && (replyidx == PACKET_GYRO_LEN))
+    if ((packetbuffer_receive[1] == 'G') && (replyidx == PACKET_GYRO_LEN))
       break;
-    if ((packetbuffer[1] == 'M') && (replyidx == PACKET_MAG_LEN))
+    if ((packetbuffer_receive[1] == 'M') && (replyidx == PACKET_MAG_LEN))
       break;
-    if ((packetbuffer[1] == 'Q') && (replyidx == PACKET_QUAT_LEN))
+    if ((packetbuffer_receive[1] == 'Q') && (replyidx == PACKET_QUAT_LEN))
       break;
-    if ((packetbuffer[1] == 'B') && (replyidx == PACKET_BUTTON_LEN))
+    if ((packetbuffer_receive[1] == 'B') && (replyidx == PACKET_BUTTON_LEN))
       break;
-    if ((packetbuffer[1] == 'C') && (replyidx == PACKET_COLOR_LEN))
+    if ((packetbuffer_receive[1] == 'T') && (replyidx == PACKET_TASK_LEN))
       break;
-    if ((packetbuffer[1] == 'L') && (replyidx == PACKET_LOCATION_LEN))
+    if ((packetbuffer_receive[1] == 'C') && (replyidx == PACKET_COLOR_LEN))
+      break;
+    if ((packetbuffer_receive[1] == 'L') && (replyidx == PACKET_LOCATION_LEN))
       break;
 
     while (ble_uart->available()) {
@@ -95,7 +98,7 @@ uint8_t readPacket(BLEUart *ble_uart, uint16_t timeout)
       if (c == '!') {
         replyidx = 0;
       }
-      packetbuffer[replyidx] = c;
+      packetbuffer_receive[replyidx] = c;
       replyidx++;
       timeout = origtimeout;
     }
@@ -104,19 +107,19 @@ uint8_t readPacket(BLEUart *ble_uart, uint16_t timeout)
     delay(1);
   }
 
-  packetbuffer[replyidx] = 0;  // null term
+  packetbuffer_receive[replyidx] = 0;  // null term
 
   if (!replyidx)  // no data or timeout 
     return 0;
-  if (packetbuffer[0] != '!')  // doesn't start with '!' packet beginning
+  if (packetbuffer_receive[0] != '!')  // doesn't start with '!' packet beginning
     return 0;
   
   // check checksum!
   uint8_t xsum = 0;
-  uint8_t checksum = packetbuffer[replyidx-1];
+  uint8_t checksum = packetbuffer_receive[replyidx-1];
   
   for (uint8_t i=0; i<replyidx-1; i++) {
-    xsum += packetbuffer[i];
+    xsum += packetbuffer_receive[i];
   }
   xsum = ~xsum;
 
@@ -124,7 +127,7 @@ uint8_t readPacket(BLEUart *ble_uart, uint16_t timeout)
   if (xsum != checksum)
   {
     Serial.print("Checksum mismatch in packet : ");
-    printHex(packetbuffer, replyidx+1);
+    printHex(packetbuffer_receive, replyidx+1);
     return 0;
   }
   
