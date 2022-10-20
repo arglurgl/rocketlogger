@@ -21,6 +21,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
+#include <packetCreator.h>
 
 // OTA DFU service
 BLEDfu bledfu;
@@ -32,10 +33,6 @@ BLEUart bleuart;
 uint8_t readPacket (BLEUart *ble_uart, uint16_t timeout);
 float   parsefloat (uint8_t *buffer);
 void    printHex   (const uint8_t * data, const uint32_t numBytes);
-
-//Function prototypes for packetcreator.h
-bool sendVector(BLEUart *ble_uart, uint8_t type, float x, float y, float z);
-#define PACKET_DATA_TYPE_ACC                 (1) //do proper header later
 
 // Packet buffer
 extern uint8_t packetbuffer_receive[];
@@ -81,6 +78,42 @@ void printBMP280Values(){
     rgbled.show();
 
     Serial.println();
+}
+
+void sendSensorValues(){
+    sensors_event_t event; 
+
+    //get the sensor data
+    bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
+    float temp = bmp.readTemperature();
+    float press = bmp.readPressure();
+    float rel_height =(bmp.readAltitude(sealevel_pressure)-current_height);
+
+    Serial.print("Gravity ");
+    Serial.print("X: ");
+    Serial.print(event.acceleration.x, 4);
+    Serial.print("\tY: ");
+    Serial.print(event.acceleration.y, 4);
+    Serial.print("\tZ: ");
+    Serial.print(event.acceleration.z, 4);
+    Serial.println("");
+    
+    Serial.print(F("Temperature = "));
+    Serial.print(temp);
+    Serial.println(" *C");
+
+    Serial.print(F("Pressure = "));
+    Serial.print(press);
+    Serial.println(" Pa");
+
+    Serial.print(F("appr. relative height = "));    
+    Serial.print(rel_height, 1); 
+    Serial.println(" m");
+
+    // send the data
+    sendVector3(&bleuart, PACKET_DATA_ACC_HEADER, event.acceleration.x, event.acceleration.y, event.acceleration.z);
+    sendVector3(&bleuart, PACKET_DATA_ALT_HEADER, temp, press, rel_height);
+
 }
 
 
@@ -232,21 +265,16 @@ void loop(void)
 
   //bno.getSystemStatus
   
-  delay(100);
+  //delay(100);
+
+  //LED for speed test
+  float rel_height =(bmp.readAltitude(sealevel_pressure)-current_height);
+  if  (rel_height > 0) rgbled.setPixelColor(0,0,64,0);
+  else rgbled.setPixelColor(0,64,0,0);
+  rgbled.show();
 
   if (ble_stream) {
-    sensors_event_t event; 
-    bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
-    Serial.print("Gravity ");
-    Serial.print("X: ");
-    Serial.print(event.acceleration.x, 4);
-    Serial.print("\tY: ");
-    Serial.print(event.acceleration.y, 4);
-    Serial.print("\tZ: ");
-    Serial.print(event.acceleration.z, 4);
-    Serial.println("");
-    sendVector(&bleuart, PACKET_DATA_TYPE_ACC, event.acceleration.x, event.acceleration.y, event.acceleration.z);
-    bleuart.flushTXD();
+    sendSensorValues();
   }
   
   // Wait for new BLE data to arrive
@@ -265,6 +293,7 @@ void loop(void)
     if (task == 'S'){ // streaming
       if (subtask == 'B') ble_stream = true; //begin
       else if (subtask == 'E') ble_stream = false; //end
+      else if (subtask == 'P') sendSensorValues(); //send single Point for each value (for polling mode)
     }
   }
 

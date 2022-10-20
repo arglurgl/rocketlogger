@@ -38,12 +38,12 @@ def read_packet(timeout : float):
     while (time.time() - timeout_start) < timeout:
     
         if len(buffer)>=2:
-            if (chr(buffer[1]) == 'A') and (replyidx == PACKET_DATA_ACC_LEN):
+            if replyidx == PACKET_DATA_ACC_LEN:
                 break  
 
         if uart_service.in_waiting > 0 :
             char = uart_service.read(1)
-            if char == b'!':
+            if not start_found and char == b'!':
                 start_found = True
                 replyidx = 0
             if start_found:
@@ -72,27 +72,33 @@ def read_packet(timeout : float):
     return buffer
 
 def update(frame):
-    global new_data
-    if new_data:
-        x_data.append(datetime.datetime.now())
-        y_data.append(z)
-        new_data = False
-    line.set_data(x_data, y_data)
+    xline.set_data(t_data, x_data)
+    yline.set_data(t_data, y_data)
+    zline.set_data(t_data, z_data)
     figure.gca().relim()
     figure.gca().autoscale_view()
-    return line,
+    return xline, yline, zline
 
-x = 0.0
-y = 0.0
-z = 0.0
-new_data = False
+def update2(frame):
+    hline.set_data(t_data, h_data)
+    figure2.gca().relim()
+    figure2.gca().autoscale_view()
+    return hline
+
 ##set up plot
-x_data, y_data = [], []
+t_data, x_data, y_data, z_data, h_data = [], [], [], [], []
 
 figure = pyplot.figure()
-line, = pyplot.plot_date(x_data, y_data, '-')
-
+xline, = pyplot.plot_date(t_data, x_data, '-')
+yline, = pyplot.plot_date(t_data, y_data, '-')
+zline, = pyplot.plot_date(t_data, z_data, '-')
 animation = FuncAnimation(figure, update, interval=25)
+
+figure2 = pyplot.figure()
+hline, = pyplot.plot_date(t_data, h_data, '-')
+animation2 = FuncAnimation(figure2, update2, interval=25)
+
+
 
 while True:
     if not uart_connection:
@@ -104,28 +110,39 @@ while True:
                 break
         ble.stop_scan()
 
+    data_limit = 50
+
     if uart_connection and uart_connection.connected:
         uart_service = uart_connection[UARTService]
         try:
-            send_packet("TSB") # start stream
+            #send_packet("TSB") # start stream
             while uart_connection.connected:
 
-                r = random.randint(0,64).to_bytes(1, byteorder='big')
-                g = random.randint(0,64).to_bytes(1, byteorder='big')
-                b = random.randint(0,64).to_bytes(1, byteorder='big')
-
-                # while uart_service.in_waiting > 0:
-                #     print(uart_service.read(uart_service.in_waiting))
-                # time.sleep(1/1000)
+                #poll for data
+                send_packet("TSP")
                 packet = read_packet(1.5)
-                if packet:
+                if packet and chr(packet[1]) == "A":
                     [x,y,z] = struct.unpack('fff',packet[2:14])
-                    print(x,y,z)
-                    new_data = True
+                    t_data.append(datetime.datetime.now())
+                    x_data.append(x)
+                    y_data.append(y)
+                    z_data.append(z)
+                    #print(x,y,z)                    
+                
+                packet = read_packet(1.5)
+                if packet and chr(packet[1]) == "H":
+                    [temp,press,height] = struct.unpack('fff',packet[2:14])
+                    h_data.append(height)
+                    #print(temp,press,height)
+                
+                for curr_list in[t_data, x_data, y_data, z_data, h_data]:
+                    if len(curr_list) > data_limit:
+                        del curr_list[:1]
+                    
 
-                pyplot.pause(0.005)
+                pyplot.pause(0.010)
 
         except KeyboardInterrupt:
-            send_packet("TSE") # end stream
+            #send_packet("TSE") # end stream
             break
                 

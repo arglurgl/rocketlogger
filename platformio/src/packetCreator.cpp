@@ -1,16 +1,4 @@
-#include <string.h>
-#include <Arduino.h>
-#include <bluefruit.h>
-
-#define PACKET_DATA_TYPE_ACC                 (1)
-
-#define PACKET_DATA_ACC_LEN                  (15)
-
-#define PACKET_DATA_ACC_HEADER               'A'
-
-
-//    SEND_BUFSIZE            Size of the read buffer for assembling packets
-#define SEND_BUFSIZE                    (20)
+#include <packetCreator.h>
 
 
 /* Buffer to hold incoming characters */
@@ -30,42 +18,41 @@ void vectorbytes(float x, float y, float z, uint8_t *buffer)
 
 /**************************************************************************/
 /*!
-    @brief  Waits for incoming data and parses it
+    @brief  Sends data for a three component vector
 */
 /**************************************************************************/
-bool sendVector(BLEUart *ble_uart, uint8_t type, float x, float y, float z) 
+bool sendVector3(BLEUart *ble_uart, char type_header, float x, float y, float z) 
 {
-  ble_uart->flushTXD(); // make sure buffer is empty so we fit in one MTU
   memset(packetbuffer_send, 0, SEND_BUFSIZE);
   packetbuffer_send[0] = '!';
   uint8_t packetlength = 0;
 
-  if (type == PACKET_DATA_TYPE_ACC) {
-    //prepare buffer    
-    packetbuffer_send[1] = PACKET_DATA_ACC_HEADER;
-    vectorbytes(x, y, z, packetbuffer_send+2);
-    packetlength = PACKET_DATA_ACC_LEN;  
+  switch (type_header){
+    case PACKET_DATA_ACC_HEADER:
+    case PACKET_DATA_ALT_HEADER:
+      break; //header is OK, continue
+    default:
+      Serial.println("unknown type");
+      return false;
   }
-  //more types here
+  
+  //prepare buffer    
+  packetbuffer_send[1] = type_header;
+  vectorbytes(x, y, z, packetbuffer_send+2);
+  packetlength = PACKET_DATA_VECTOR3_LEN;  
 
-  //check if data was set
-  if (packetlength){
-    //calc checksum
-    uint8_t checksum = 0;
-    for (uint8_t i=0; i<packetlength-1; i++) {
-      checksum += packetbuffer_send[i];
-    }
-    checksum = ~checksum;
-    packetbuffer_send[packetlength-1] = checksum;
-
-    //send the buffer
-    ble_uart->write(packetbuffer_send, PACKET_DATA_ACC_LEN);
-    ble_uart->flushTXD();
-    return true;
+  //calc checksum
+  uint8_t checksum = 0;
+  for (uint8_t i=0; i<packetlength-1; i++) {
+    checksum += packetbuffer_send[i];
   }
+  checksum = ~checksum;
+  packetbuffer_send[packetlength-1] = checksum;
 
-  //invalid type, no data was sent
-  Serial.println("unknown type");
-  return false;
+  //send the buffer
+  ble_uart->flushTXD(); // make sure buffer is empty so we fit in one MTU
+  ble_uart->write(packetbuffer_send, PACKET_DATA_VECTOR3_LEN);
+  ble_uart->flushTXD();
+  return true;
 }
 
