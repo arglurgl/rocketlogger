@@ -4,6 +4,7 @@
 # this code was originally based on the Adafruit "eval() BLE UART" example
 
 import random
+import numpy
 import struct
 import time
 import datetime
@@ -97,6 +98,31 @@ animation = FuncAnimation(figure, update, interval=25)
 figure2 = pyplot.figure()
 hline, = pyplot.plot_date(t_data, h_data, '-')
 animation2 = FuncAnimation(figure2, update2, interval=25)
+
+def get_arrow():
+    x = 0
+    y = 0
+    z = 0
+    u = x_data[-1:]
+    v = y_data[-1:]
+    w = z_data[-1:]
+    return x,y,z,u,v,w
+
+figure3 = pyplot.figure()
+ax3 = figure3.add_subplot(111, projection='3d')
+ax3.set_title("Gravity")
+quiver = ax3.quiver(*get_arrow())
+ax3.set_xlim(-10, 10)
+ax3.set_ylim(-10, 10)
+ax3.set_zlim(-10, 10)
+
+def update3(frame):
+    global quiver
+    quiver.remove()
+    quiver = ax3.quiver(*get_arrow())
+
+animation3 = FuncAnimation(figure3, update3, interval=25)
+
 
 
 
