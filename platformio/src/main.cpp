@@ -21,7 +21,17 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
+#include <SdFat.h>
+#include <Adafruit_SPIFlash.h>
 #include <packetCreator.h>
+
+// flash/filesystem
+#include "flash_config.h" // for flashTransport definition
+Adafruit_SPIFlash flash(&flashTransport);
+FatVolume fatfs;
+void format_flash(); // declare fomrat flash, defined in format_flash.cpp
+#define F_TEST_TEST_TXT       "/test/test.txt"
+#define D_TEST                "/test"
 
 // OTA DFU service
 BLEDfu bledfu;
@@ -116,6 +126,84 @@ void sendSensorValues(){
 
 }
 
+void test_fatfs(){
+  // Check if a directory called 'test' exists and create it if not there.
+  // Note you should _not_ add a trailing slash (like '/test/') to directory names!
+  // You can use the same exists function to check for the existance of a file too.
+  if (!fatfs.exists(D_TEST)) {
+    Serial.println(F("Test directory not found, creating..."));
+    
+    // Use mkdir to create directory (note you should _not_ have a trailing slash).
+    fatfs.mkdir(D_TEST);
+    
+    if ( !fatfs.exists(D_TEST) ) {
+      Serial.println(F("Error, failed to create directory!"));
+      while(1) yield();
+    }else {
+      Serial.println(F("Created directory!"));
+    }
+  }
+
+  File32 writeFile = fatfs.open(F_TEST_TEST_TXT, FILE_WRITE);
+  if (!writeFile) {
+    Serial.println(F("Error, failed to open " F_TEST_TEST_TXT " for writing!"));
+    while(1) yield();
+  }
+  Serial.println(F("Opened file " F_TEST_TEST_TXT " for writing/appending..."));
+
+  // Once open for writing you can print to the file as if you're printing
+  // to the serial terminal, the same functions are available.
+  writeFile.println("Hello world!");
+  writeFile.print("Hello number: "); writeFile.println(123, DEC);
+  writeFile.print("Hello hex number: 0x"); writeFile.println(123, HEX);
+
+  // Close the file when finished writing.
+  writeFile.close();
+  Serial.println(F("Wrote to file " F_TEST_TEST_TXT "!"));
+
+  // Now open the same file but for reading.
+  File32 readFile = fatfs.open(F_TEST_TEST_TXT, FILE_READ);
+  if (!readFile) {
+    Serial.println(F("Error, failed to open " F_TEST_TEST_TXT " for reading!"));
+    while(1) yield();
+  }
+
+  // Read data using the same read, find, readString, etc. functions as when using
+  // the serial class.  See SD library File class for more documentation:
+  //   https://www.arduino.cc/en/reference/SD
+  // Read a line of data:
+  String line = readFile.readStringUntil('\n');
+  Serial.print(F("First line of test.txt: ")); Serial.println(line);
+
+  // You can get the current position, remaining data, and total size of the file:
+  Serial.print(F("Total size of test.txt (bytes): ")); Serial.println(readFile.size(), DEC);
+  Serial.print(F("Current position in test.txt: ")); Serial.println(readFile.position(), DEC);
+  Serial.print(F("Available data to read in test.txt: ")); Serial.println(readFile.available(), DEC);
+
+  // And a few other interesting attributes of a file:
+  char readName[64];
+  readFile.getName(readName, sizeof(readName));
+  Serial.print(F("File name: ")); Serial.println(readName);
+  Serial.print(F("Is file a directory? ")); Serial.println(readFile.isDirectory() ? F("Yes") : F("No"));
+
+  // You can seek around inside the file relative to the start of the file.
+  // For example to skip back to the start (position 0):
+  if (!readFile.seek(0)) {
+    Serial.println(F("Error, failed to seek back to start of file!"));
+    while(1) yield();
+  }
+
+  // And finally to read all the data and print it out a character at a time
+  // (stopping when end of file is reached):
+  Serial.println(F("Entire contents of test.txt:"));
+  while (readFile.available()) {
+    char c = readFile.read();
+    Serial.print(c);
+  }
+
+  // Close the file when finished reading.
+  readFile.close();
+}
 
 
 void setup(void)
@@ -129,8 +217,31 @@ void setup(void)
     tries++;
   }
 
-  Serial.println(F("Adafruit Bluefruit52 Controller App Example"));
-  Serial.println(F("-------------------------------------------"));
+  delay(5000); // add some time for platformio monitor to start and actually see setup messages
+
+  //uncomment this next line to format a new device's flash, this will erase all data on the flash!
+  //format_flash();
+  // initialize 2MB external QSPI flash on the itsybitsy board
+  Serial.println("Initializing flash...");
+  flash.begin();
+  Serial.print(F("JEDEC ID: 0x"));
+  Serial.println(flash.getJEDECID(), HEX);
+  Serial.print(F("Flash size: "));
+  Serial.print(flash.size() / 1024);
+  Serial.println(F(" KB"));
+  if ( !fatfs.begin(&flash) ) {
+  Serial.println(F("Error: filesystem is not existent on the flash device. Please run the SdFat_format example of the Adafruit flash library to make one."));
+  while(1)
+    {
+      yield();
+      delay(1);
+    }
+  }
+  Serial.println(F("Flash/FAT init done"));
+
+  test_fatfs(); //TODO for testing, remove
+
+  Serial.println(F("Initializing Bluetooth..."));
 
   Bluefruit.begin();
   Bluefruit.setTxPower(4);    // Check bluefruit.h for supported values
@@ -144,9 +255,7 @@ void setup(void)
   // Set up and start advertising
   startAdv();
 
-  Serial.println(F("Please use Adafruit Bluefruit LE app to connect in Controller mode"));
-  Serial.println(F("Then activate/use the sensors, color picker, game controller, etc!"));
-  Serial.println();
+  Serial.println(F("Bluetooth initialization done"));
 
   //set up RGB LED
   rgbled.begin();
@@ -240,7 +349,7 @@ void loop(void)
 
   //test orientation sensor
   /* Get a new sensor event */ 
-  //sensors_event_t event; 
+  // sensors_event_t event; 
   // bno.getEvent(&event);
   
   // /* Display the floating point data */
@@ -253,7 +362,7 @@ void loop(void)
   // Serial.print(event.orientation.z, 4);
   // Serial.println("");
 
-  //bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
+  // bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
   // Serial.print("Gravity ");
   // Serial.print("X: ");
   // Serial.print(event.acceleration.x, 4);
@@ -265,7 +374,7 @@ void loop(void)
 
   //bno.getSystemStatus
   
-  //delay(100);
+  // delay(100);
 
   //LED for speed test
   float rel_height =(bmp.readAltitude(sealevel_pressure)-current_height);

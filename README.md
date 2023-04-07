@@ -17,3 +17,6 @@ A data logger for water rockets
 * Trigger parachute deployment
 * Rocket recovery helper via sound and light
 * (Speed logging from ground via audio (Doppler) and light (flashing and long exposure at night)
+
+## First Time Setup
+When running the code for the first time on a new board it will complain in the serial monitor about the filesystem missing. To format the flash, simply uncomment the line `format_flash();` in `setup()` and hit 'upload and monitor' in PlatformIO. Confirm the format in the serial monitor, and when done comment the format_flash line out again and re-upload the code to restart the board.
