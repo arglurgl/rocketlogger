@@ -24,6 +24,7 @@
 #include <SdFat.h>
 #include <Adafruit_SPIFlash.h>
 #include <packetCreator.h>
+#include <commandline.h>
 
 // flash/filesystem
 #include "flash_config.h" // for flashTransport definition
@@ -239,7 +240,7 @@ void setup(void)
   }
   Serial.println(F("Flash/FAT init done"));
 
-  test_fatfs(); //TODO for testing, remove
+  //test_fatfs(); //TODO for testing, remove
 
   Serial.println(F("Initializing Bluetooth..."));
 
@@ -344,6 +345,8 @@ void startAdv(void)
 /**************************************************************************/
 void loop(void)
 {
+  getCommandChunk();
+  doCommands();
   //poll pressure sensor and print
   //printBMP280Values();
 
