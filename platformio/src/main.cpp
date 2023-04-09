@@ -22,6 +22,9 @@
 #include <commandline.h>
 #include <flash.h>
 #include <bluetooth.h>
+#include <pressure.h>
+
+#define INITIAL_REF_HEIGHT 50.0 // height to use in initial setup //TODO save in persistent memory
 
 // Function prototypes for packetparser.cpp
 uint8_t readPacket (BLEUart *ble_uart, uint16_t timeout);
@@ -37,12 +40,6 @@ extern uint8_t packetbuffer_receive[];
 #define CLOCKPIN   6
 Adafruit_DotStar rgbled(NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BGR);
 
-//pressure sensor 
-#define BMP_CS A0
-float sealevel_pressure = 1023.8;
-float current_height = 50;
-Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
-
 //orientation/acceleration sensor BN0055
 Adafruit_BNO055 bno = Adafruit_BNO055(55,0x29); // you may need to adapt the address
 
@@ -51,15 +48,15 @@ bool ble_stream = false;
 
 void printBMP280Values(){
     Serial.print(F("Temperature = "));
-    Serial.print(bmp.readTemperature());
+    Serial.print(pressureSensor.readTemperature());
     Serial.println(" *C");
 
     Serial.print(F("Pressure = "));
-    Serial.print(bmp.readPressure());
+    Serial.print(pressureSensor.readPressure());
     Serial.println(" Pa");
 
     Serial.print(F("appr. relative height = "));
-    float rel_height =(bmp.readAltitude(sealevel_pressure)-current_height);
+    float rel_height =relativeAltitude();
     Serial.print(rel_height, 1); /* Adjusted to local forecast! */
     Serial.println(" m");
 
@@ -76,9 +73,9 @@ void sendSensorValues(){
 
     //get the sensor data
     bno.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
-    float temp = bmp.readTemperature();
-    float press = bmp.readPressure();
-    float rel_height =(bmp.readAltitude(sealevel_pressure)-current_height);
+    float temp = pressureSensor.readTemperature();
+    float press = pressureSensor.readPressure();
+    float rel_height =relativeAltitude();
 
     Serial.print("Gravity ");
     Serial.print("X: ");
@@ -134,39 +131,15 @@ void setup(void)
   setupBluetooth();
   Serial.println(F("OK"));
 
-  //set up RGB LED
+  Serial.print(F("  RGB LED..."));
   rgbled.begin();
-  rgbled.show(); // Initialize all pixels to 'off'
-
-  //turn it on
   rgbled.setPixelColor(0, 0, 16, 0);
   rgbled.show();
+  Serial.println(F("OK"));
 
-  //initialize pressure sensor
-  unsigned status;
-  //status = bmp.begin(BMP280_ADDRESS_ALT, BMP280_CHIPID);
-  status = bmp.begin();
-  if (!status) {
-    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                      "try a different address!"));
-    Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(),16);
-    Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-    Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-    Serial.print("        ID of 0x60 represents a BME 280.\n");
-    Serial.print("        ID of 0x61 represents a BME 680.\n");
-    while (1) delay(10);
-  }
-
-  /* Default settings from datasheet. */
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_OFF,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_1); /* Standby time. */
-
-  //calibrate sealevel pressure using current pressure and known height
-  float current_pressure = bmp.readPressure()/100.0;
-  sealevel_pressure = bmp.seaLevelForAltitude(current_height,current_pressure);
+  Serial.print(F("  Pressure sensor..."));
+  setupPressureSensor(INITIAL_REF_HEIGHT);
+  Serial.println(F("OK"));
 
   //orientation sensor
   /* Initialise the sensor */
@@ -222,7 +195,7 @@ void loop(void)
   // delay(100);
 
   //LED for speed test
-  float rel_height =(bmp.readAltitude(sealevel_pressure)-current_height);
+  float rel_height =relativeAltitude();
   if  (rel_height > 0) rgbled.setPixelColor(0,0,64,0);
   else rgbled.setPixelColor(0,64,0,0);
   rgbled.show();
