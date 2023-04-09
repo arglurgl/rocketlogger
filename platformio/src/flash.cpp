@@ -5,7 +5,7 @@ Adafruit_SPIFlash flash(&flashTransport);
 FatVolume fatfs;
 
 /// @brief Initialize 2MB external QSPI flash on the itsybitsy board. Blocks on error.
-void SetupFlash(){
+void setupFlash(){
   flash.begin();
   if ( !fatfs.begin(&flash) ) {
     Serial.println(F("Error: filesystem is not existent on the flash device. Please uncomment format_flash() to make one."));

@@ -9,4 +9,4 @@ extern Adafruit_SPIFlash flash;
 extern FatVolume fatfs;
 
 void format_flash();
-void SetupFlash();
+void setupFlash();
