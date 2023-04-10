@@ -1,4 +1,7 @@
 // flash/filesystem
+#ifndef _FLASH_H_GUARD
+#define _FLASH_H_GUARD
+
 #include <Adafruit_SPIFlash.h>
 #include <SdFat.h>
 
@@ -10,3 +13,5 @@ extern FatVolume fatfs;
 
 void format_flash();
 void setupFlash();
+
+#endif

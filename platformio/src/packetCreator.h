@@ -1,3 +1,6 @@
+#ifndef _PACKETCREATOR_H_GUARD
+#define _PACKETCREATOR_H_GUARD
+
 #include <string.h>
 #include <Arduino.h>
 #include <bluefruit.h>
@@ -13,3 +16,5 @@
 //Function prototypes for packetcreator
 bool sendVector3(BLEUart *ble_uart, char type_header, float x, float y, float z);
 #define PACKET_DATA_TYPE_ACC                 (1) //do proper header later
+
+#endif
