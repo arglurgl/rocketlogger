@@ -7,6 +7,7 @@
 
 Adafruit_DotStar rgbled(NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BGR);
 
+/// @brief Intialize RGB LED and set to start color
 void setupLED(){  
   rgbled.begin();
   rgbled.setPixelColor(0, INITIAL_COLOR);

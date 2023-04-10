@@ -3,7 +3,7 @@
 
 #include <Adafruit_BNO055.h>
 
-extern Adafruit_BNO055 bno;
+extern Adafruit_BNO055 orientationSensor;
 
 void setupOrientationSensor();
 
