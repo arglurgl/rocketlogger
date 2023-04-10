@@ -16,6 +16,8 @@ void setupBluetooth(){
 
     // Set up and start advertising
     startAdvertising();
+
+    bleuart.bufferTXD(true);
 }
 
 void startAdvertising(){

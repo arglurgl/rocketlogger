@@ -14,15 +14,14 @@
 #include <Arduino.h>
 #include <Adafruit_DotStar.h>
 #include <SPI.h>
-#include <Adafruit_BMP280.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <packetCreator.h>
 #include <commandline.h>
 #include <flash.h>
 #include <bluetooth.h>
 #include <pressure.h>
+#include <orientation.h>
 
 #define INITIAL_REF_HEIGHT 50.0 // height to use in initial setup //TODO save in persistent memory
 
@@ -39,9 +38,6 @@ extern uint8_t packetbuffer_receive[];
 #define DATAPIN    8
 #define CLOCKPIN   6
 Adafruit_DotStar rgbled(NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BGR);
-
-//orientation/acceleration sensor BN0055
-Adafruit_BNO055 bno = Adafruit_BNO055(55,0x29); // you may need to adapt the address
 
 //for testing BLE data stream
 bool ble_stream = false;
@@ -121,7 +117,7 @@ void setup(void)
   Serial.println("Starting setup");
 
   Serial.print(F("  Flash/filesystem..."));
-  //uncomment this next line to format a new device's flash, this will erase all data on the flash!
+  //uncomment this next line and follow instructions on monitor to format a new device's flash, this will erase all data!
   //format_flash();
   setupFlash();
   Serial.println(F("OK"));
@@ -141,21 +137,11 @@ void setup(void)
   setupPressureSensor(INITIAL_REF_HEIGHT);
   Serial.println(F("OK"));
 
-  //orientation sensor
-  /* Initialise the sensor */
-  Serial.println("Setup orientation sensor");
-  if(!bno.begin())
-  {
-    /* There was a problem detecting the BNO055 ... check your connections */
-    Serial.println("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-    while(1);
-  }  
-  delay(1000);    
-  bno.setExtCrystalUse(true);
+  Serial.print(F("  Orientation sensor..."));
+  setupOrientationSensor();
+  Serial.println(F("OK"));
 
-  Serial.println("Setup done");
-
-  bleuart.bufferTXD(true);
+  Serial.println("Setup done");  
 }
 
 void loop(void)
