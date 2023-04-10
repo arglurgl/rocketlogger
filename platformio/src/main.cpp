@@ -12,7 +12,6 @@
  any redistribution
 *********************************************************************/
 #include <Arduino.h>
-#include <Adafruit_DotStar.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <utility/imumaths.h>
@@ -22,6 +21,7 @@
 #include <bluetooth.h>
 #include <pressure.h>
 #include <orientation.h>
+#include <led.h>
 
 #define INITIAL_REF_HEIGHT 50.0 // height to use in initial setup //TODO save in persistent memory
 
@@ -32,12 +32,6 @@ void    printHex   (const uint8_t * data, const uint32_t numBytes);
 
 // Packet buffer
 extern uint8_t packetbuffer_receive[];
-
-//RGB LED
-#define NUMPIXELS  1 // Number of LEDs in strip
-#define DATAPIN    8
-#define CLOCKPIN   6
-Adafruit_DotStar rgbled(NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BGR);
 
 //for testing BLE data stream
 bool ble_stream = false;
@@ -116,6 +110,10 @@ void setup(void)
 
   Serial.println("Starting setup");
 
+  Serial.print(F("  RGB LED..."));
+  setupLED();
+  Serial.println(F("OK"));
+
   Serial.print(F("  Flash/filesystem..."));
   //uncomment this next line and follow instructions on monitor to format a new device's flash, this will erase all data!
   //format_flash();
@@ -125,12 +123,6 @@ void setup(void)
 
   Serial.print(F("  Bluetooth..."));
   setupBluetooth();
-  Serial.println(F("OK"));
-
-  Serial.print(F("  RGB LED..."));
-  rgbled.begin();
-  rgbled.setPixelColor(0, 0, 16, 0);
-  rgbled.show();
   Serial.println(F("OK"));
 
   Serial.print(F("  Pressure sensor..."));
