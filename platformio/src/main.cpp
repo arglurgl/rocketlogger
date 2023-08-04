@@ -143,38 +143,7 @@ void setup(void)
 void loop(void)
 {
   getCommandChunk();
-  doCommands();
-  // poll pressure sensor and print
-  // printBMP280Values();
-
-  // test orientation sensor
-  /* Get a new sensor event */
-  // sensors_event_t event;
-  // orientationSensor.getEvent(&event);
-
-  // /* Display the floating point data */
-  // Serial.print("Orientation");
-  // Serial.print("X: ");
-  // Serial.print(event.orientation.x, 4);
-  // Serial.print("\tY: ");
-  // Serial.print(event.orientation.y, 4);
-  // Serial.print("\tZ: ");
-  // Serial.print(event.orientation.z, 4);
-  // Serial.println("");
-
-  // orientationSensor.getEvent(&event,Adafruit_BNO055::VECTOR_GRAVITY);
-  // Serial.print("Gravity ");
-  // Serial.print("X: ");
-  // Serial.print(event.acceleration.x, 4);
-  // Serial.print("\tY: ");
-  // Serial.print(event.acceleration.y, 4);
-  // Serial.print("\tZ: ");
-  // Serial.print(event.acceleration.z, 4);
-  // Serial.println("");
-
-  // orientationSensor.getSystemStatus
-
-  // delay(100);
+  doCommands();  
 
   // LED for speed test
   float rel_height = relativeAltitude();
@@ -183,8 +152,10 @@ void loop(void)
   else
     rgbled.setPixelColor(0, 64, 0, 0);
   rgbled.show();
+}
 
-  if (ble_stream)
+/* old bluetooth stuff from main to be moved
+ if (ble_stream)
   {
     sendSensorValues();
   }
@@ -216,129 +187,4 @@ void loop(void)
         sendSensorValues(); // send single Point for each value (for polling mode)
     }
   }
-
-  // Color
-  if (packetbuffer_receive[1] == 'C')
-  {
-    uint8_t red = packetbuffer_receive[2];
-    uint8_t green = packetbuffer_receive[3];
-    uint8_t blue = packetbuffer_receive[4];
-
-    // set led
-    rgbled.setPixelColor(0, red, green, blue);
-    rgbled.show();
-
-    Serial.print("RGB #");
-    if (red < 0x10)
-      Serial.print("0");
-    Serial.print(red, HEX);
-    if (green < 0x10)
-      Serial.print("0");
-    Serial.print(green, HEX);
-    if (blue < 0x10)
-      Serial.print("0");
-    Serial.println(blue, HEX);
-  }
-
-  // Buttons
-  if (packetbuffer_receive[1] == 'B')
-  {
-    uint8_t buttnum = packetbuffer_receive[2] - '0';
-    boolean pressed = packetbuffer_receive[3] - '0';
-    Serial.print("Button ");
-    Serial.print(buttnum);
-    if (pressed)
-    {
-      Serial.println(" pressed");
-    }
-    else
-    {
-      Serial.println(" released");
-    }
-  }
-
-  // GPS Location
-  if (packetbuffer_receive[1] == 'L')
-  {
-    float lat, lon, alt;
-    lat = parsefloat(packetbuffer_receive + 2);
-    lon = parsefloat(packetbuffer_receive + 6);
-    alt = parsefloat(packetbuffer_receive + 10);
-    Serial.print("GPS Location\t");
-    Serial.print("Lat: ");
-    Serial.print(lat, 4); // 4 digits of precision!
-    Serial.print('\t');
-    Serial.print("Lon: ");
-    Serial.print(lon, 4); // 4 digits of precision!
-    Serial.print('\t');
-    Serial.print(alt, 4);
-    Serial.println(" meters");
-  }
-
-  // Accelerometer
-  if (packetbuffer_receive[1] == 'A')
-  {
-    float x, y, z;
-    x = parsefloat(packetbuffer_receive + 2);
-    y = parsefloat(packetbuffer_receive + 6);
-    z = parsefloat(packetbuffer_receive + 10);
-    Serial.print("Accel\t");
-    Serial.print(x);
-    Serial.print('\t');
-    Serial.print(y);
-    Serial.print('\t');
-    Serial.print(z);
-    Serial.println();
-  }
-
-  // Magnetometer
-  if (packetbuffer_receive[1] == 'M')
-  {
-    float x, y, z;
-    x = parsefloat(packetbuffer_receive + 2);
-    y = parsefloat(packetbuffer_receive + 6);
-    z = parsefloat(packetbuffer_receive + 10);
-    Serial.print("Mag\t");
-    Serial.print(x);
-    Serial.print('\t');
-    Serial.print(y);
-    Serial.print('\t');
-    Serial.print(z);
-    Serial.println();
-  }
-
-  // Gyroscope
-  if (packetbuffer_receive[1] == 'G')
-  {
-    float x, y, z;
-    x = parsefloat(packetbuffer_receive + 2);
-    y = parsefloat(packetbuffer_receive + 6);
-    z = parsefloat(packetbuffer_receive + 10);
-    Serial.print("Gyro\t");
-    Serial.print(x);
-    Serial.print('\t');
-    Serial.print(y);
-    Serial.print('\t');
-    Serial.print(z);
-    Serial.println();
-  }
-
-  // Quaternions
-  if (packetbuffer_receive[1] == 'Q')
-  {
-    float x, y, z, w;
-    x = parsefloat(packetbuffer_receive + 2);
-    y = parsefloat(packetbuffer_receive + 6);
-    z = parsefloat(packetbuffer_receive + 10);
-    w = parsefloat(packetbuffer_receive + 14);
-    Serial.print("Quat\t");
-    Serial.print(x);
-    Serial.print('\t');
-    Serial.print(y);
-    Serial.print('\t');
-    Serial.print(z);
-    Serial.print('\t');
-    Serial.print(w);
-    Serial.println();
-  }
-}
+  */
