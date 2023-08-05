@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "flash.h"
 
 //max 255
 #define CMD_BUFFER_SIZE 10
@@ -35,6 +36,12 @@ void doCommands(){
             Serial.println("hi!");
         }else if (strcmp(commandBuffer[processedCommmands].c_str(), "hi") == 0){
             Serial.println("hello!");
+        }else if (strcmp(commandBuffer[processedCommmands].c_str(), "ls") == 0){
+            listfiles();
+        }else if (commandBuffer[processedCommmands].startsWith("print")){
+            //find start of filename by space character and use remaining string as filename
+            int filename_start = commandBuffer[processedCommmands].indexOf(" ")+1;
+            printfile(commandBuffer[processedCommmands].substring(filename_start).c_str());
         }else{ //default
                 Serial.print("Unknown command: ");
                 Serial.println(commandBuffer[processedCommmands].c_str());

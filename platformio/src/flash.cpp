@@ -95,3 +95,18 @@ void test_fatfs(){
   // Close the file when finished reading.
   readFile.close();
 }
+
+/// @brief List the filenames in the root directory
+void listfiles(){
+  fatfs.ls();
+}
+/// @brief Print the contents of the passed in filename
+void printfile(const char* filename){
+  File32 readFile = fatfs.open(filename, FILE_READ);
+  while (readFile.available()) {
+    char c = readFile.read();
+    Serial.print(c);
+  }
+  // Close the file when finished reading.
+  readFile.close();
+}

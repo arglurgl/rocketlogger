@@ -13,5 +13,7 @@ extern FatVolume fatfs;
 
 void format_flash();
 void setupFlash();
+void listfiles();
+void printfile(const char* filename);
 
 #endif
