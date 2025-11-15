@@ -20,6 +20,7 @@
 #include <pressure.h>
 #include <orientation.h>
 #include <led.h>
+#include <flightstate.h>
 
 #define INITIAL_REF_HEIGHT 50.0 // height to use in initial setup //TODO save in persistent memory
 
@@ -30,7 +31,6 @@
 #define LAND_ALT_THRESHOLD 0.3       // meters to consider landed
 #define MIN_RECORD_TIME_MS 2000      // min recording time before landing is recognized
 
-enum FlightState { STANDBY = 0, ARMED, RECORDING };
 static FlightState flightState = STANDBY;
 
 static size_t log_count = 0;
@@ -302,6 +302,8 @@ void loop(void)
 { 
   while (true){
 
+    // Update LED based on flight state
+    updateLED(flightState);
     // State machine: check sensors and sample if needed
     // State-specific behavior
     if (flightState == ARMED)

@@ -119,7 +119,7 @@ async def run(addr, do_arm, do_transfer, do_stop, do_status, outfile):
                 transfer_done.clear()
                 await send_cmd(b'T')
                 try:
-                    await asyncio.wait_for(transfer_done.wait(), timeout=60.0)
+                    await asyncio.wait_for(transfer_done.wait(), None)
                 except asyncio.TimeoutError:
                     print("[remote] Transfer timed out waiting for samples")
                     print("[remote] Received {} lines before timeout".format(len(received)))
