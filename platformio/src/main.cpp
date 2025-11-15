@@ -50,6 +50,8 @@ void startRecording();
 void stopRecording();
 void sampleIfNeeded();
 void transferLog();
+// New prototype for status send
+void sendStatusViaBLE(BLEUart *bleuart);
 
 // New: helper to parse remote_logger packets (expected: 0x00, 'T', sub)
 static bool handleRemoteCommand(uint8_t *pkt, uint8_t len)
@@ -77,6 +79,11 @@ static bool handleRemoteCommand(uint8_t *pkt, uint8_t len)
   else if (sub == 'S') // Stop / abort
   {
     stopRecording();
+  }
+  else if (sub == 'I') // Info / Status
+  {
+    // always allowed; send current state and sample count
+    sendStatusViaBLE(&bleuart);
   }
   else
   {
@@ -216,6 +223,36 @@ void transferLog()
 
   Serial.println(F("No data stored, returning..."));
 
+}
+
+// New: send status line via BLE in simple CSV text form:
+// "STATUS,<STATE>,<SAMPLES>\n"
+void sendStatusViaBLE(BLEUart *bleuart)
+{
+  if (!bleuart) return;
+
+  const char *state_str = "UNKNOWN";
+  if (flightState == STANDBY) state_str = "STANDBY";
+  else if (flightState == ARMED) state_str = "ARMED";
+  else if (flightState == RECORDING) state_str = "RECORDING";
+
+  uint32_t samples = getLogSampleCount();
+
+  char buf[64];
+  int n = snprintf(buf, sizeof(buf), "STATUS,%s,%lu\n", state_str, (unsigned long)samples);
+  if (n <= 0) return;
+
+  // Debug print to serial
+  Serial.print(F("[BLE STATUS TX] "));
+  Serial.write((const uint8_t*)buf, (size_t)n);
+  Serial.println();
+
+  // Send via BLE UART. 
+  bleuart->write((const uint8_t*)buf, (size_t)n);
+  bleuart->flushTXD();
+
+  // small delay to allow BLE stack to schedule notification
+  delay(20);
 }
 
 void setup(void)

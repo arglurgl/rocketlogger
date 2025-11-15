@@ -221,12 +221,12 @@ static void transferLogCallback(float t, float alt)
   Serial.write((const uint8_t*)buf, (size_t)n);
   Serial.println();
 
-  // Buffer and flush via Adafruit BLE API (use boolean arg)
+  // write to buffe and flush
   s_bleuart->write((const uint8_t*)buf, (size_t)n);
   s_bleuart->flushTXD();
 
-  // pacing to reduce fragmentation/loss
-  delay(20);
+  // try to prevent buffer overruns
+  delay(200);
 }
 
 // Modified transfer: emits LOG_START/LOG_END and streams CSV text lines (one per notification)
@@ -243,6 +243,8 @@ bool transferLogViaBLE(BLEUart *bleuart)
 
   s_bleuart->write((const uint8_t*)start, (size_t)sizeof(start)-1);
   s_bleuart->flushTXD();
+  // try to prevent buffer overruns
+  delay(200);
 
   // stream CSV lines via readLog + transferLogCallback
   Serial.println(F("[BLE] Reading and streaming log samples..."));
@@ -256,6 +258,8 @@ bool transferLogViaBLE(BLEUart *bleuart)
 
   s_bleuart->write((const uint8_t*)end, (size_t)sizeof(end)-1);
   s_bleuart->flushTXD(); // flush buffer on finishing
+  // try to prevent buffer overruns
+  delay(200);
 
   Serial.println(F("[BLE] Transfer complete"));
   s_bleuart = nullptr;
