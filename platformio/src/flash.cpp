@@ -1,6 +1,10 @@
 #include <flash.h>
 #include "flash_config.h" // for flashTransport definition
 
+// New includes needed for BLE transfer
+#include <bluetooth.h>
+#include <stdio.h>
+
 Adafruit_SPIFlash flash(&flashTransport);
 FatVolume fatfs;
 
@@ -109,4 +113,150 @@ void printfile(const char* filename){
   }
   // Close the file when finished reading.
   readFile.close();
+// New: persistent logging implementation
+
+static bool ensureLogDir()
+{
+  if (!fatfs.exists(LOG_DIR))
+  {
+    if (!fatfs.mkdir(LOG_DIR))
+    {
+      Serial.println(F("Error: failed to create log directory"));
+      return false;
+    }
+  }
+  return true;
+}
+
+// Change: appendLogSample now writes human-readable CSV lines "time,alt\n"
+bool appendLogSample(float time_s, float altitude_m)
+{
+  if (!ensureLogDir()) return false;
+  File32 f = fatfs.open(LOG_FILE, FILE_WRITE);
+  if (!f) {
+    Serial.println(F("Error: failed to open log file for append"));
+    return false;
+  }
+  char buf[64];
+  int n = snprintf(buf, sizeof(buf), "%.3f,%.3f\n", time_s, altitude_m);
+  if (n <= 0) {
+    f.close();
+    return false;
+  }
+  size_t written = f.write((const uint8_t *)buf, (size_t)n);
+  f.close();
+  return (written == (size_t)n);
+}
+
+bool clearLog()
+{
+  // Remove existing file if present
+  if (fatfs.exists(LOG_FILE))
+  {
+    if (!fatfs.remove(LOG_FILE))
+    {
+      Serial.println(F("Error: failed to remove existing log file"));
+      return false;
+    }
+  }
+  return true;
+}
+
+// Change: count lines to determine number of samples
+uint32_t getLogSampleCount()
+{
+  if (!fatfs.exists(LOG_FILE)) return 0;
+  File32 f = fatfs.open(LOG_FILE, FILE_READ);
+  if (!f) return 0;
+  uint32_t count = 0;
+  while (f.available()) {
+    int c = f.read();
+    if (c == '\n') count++;
+  }
+  f.close();
+  return count;
+}
+
+// Change: read CSV lines and call callback with parsed floats
+bool readLog(LogSampleCallback cb)
+{
+  if (!fatfs.exists(LOG_FILE)) return false;
+  File32 f = fatfs.open(LOG_FILE, FILE_READ);
+  if (!f) return false;
+  while (f.available()) {
+    String line = f.readStringUntil('\n');
+    if (line.length() == 0) continue;
+    int idx = line.indexOf(',');
+    if (idx < 0) continue;
+    String tstr = line.substring(0, idx);
+    String astr = line.substring(idx + 1);
+    float t = tstr.toFloat();
+    float alt = astr.toFloat();
+    if (cb) cb(t, alt);
+  }
+  f.close();
+  return true;
+}
+
+// File-scope BLE pointer and transfer callback (simple CSV text framing)
+static BLEUart *s_bleuart = nullptr;
+
+// Send one CSV text line (with trailing newline) over BLE 
+static void transferLogCallback(float t, float alt)
+{
+  if (!s_bleuart) return;
+
+  // produce CSV line with trailing newline
+  char buf[64];
+  int n = snprintf(buf, sizeof(buf), "%.3f,%.3f\n", t, alt);
+  if (n <= 0) return;
+
+  if (n >= 20){
+    Serial.println(F("Warning: log line probably too long for BLE transfer (20 bytes max)"));
+  }
+
+  // Debug print to serial
+  Serial.print(F("[BLE TX] "));
+  Serial.write((const uint8_t*)buf, (size_t)n);
+  Serial.println();
+
+  // Buffer and flush via Adafruit BLE API (use boolean arg)
+  s_bleuart->write((const uint8_t*)buf, (size_t)n);
+  s_bleuart->flushTXD();
+
+  // pacing to reduce fragmentation/loss
+  delay(20);
+}
+
+// Modified transfer: emits LOG_START/LOG_END and streams CSV text lines (one per notification)
+bool transferLogViaBLE(BLEUart *bleuart)
+{
+  if (!fatfs.exists(LOG_FILE)) return false;
+  s_bleuart = bleuart;
+
+  // send start marker
+  const char start[] = "LOG_START\n";
+  Serial.print(F("[BLE TX] "));
+  Serial.write((const uint8_t*)start, (size_t)sizeof(start)-1);
+  Serial.println();
+
+  s_bleuart->write((const uint8_t*)start, (size_t)sizeof(start)-1);
+  s_bleuart->flushTXD();
+
+  // stream CSV lines via readLog + transferLogCallback
+  Serial.println(F("[BLE] Reading and streaming log samples..."));
+  bool ok = readLog(&transferLogCallback);
+
+  // send end marker
+  const char end[] = "LOG_END\n";
+  Serial.print(F("[BLE TX] "));
+  Serial.write((const uint8_t*)end, sizeof(end)-1);
+  Serial.println();
+
+  s_bleuart->write((const uint8_t*)end, (size_t)sizeof(end)-1);
+  s_bleuart->flushTXD(); // flush buffer on finishing
+
+  Serial.println(F("[BLE] Transfer complete"));
+  s_bleuart = nullptr;
+  return ok;
 }
