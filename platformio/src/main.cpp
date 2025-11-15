@@ -25,7 +25,7 @@
 
 // New: flight logging / state machine constants and storage
 #define MAX_SAMPLES 12000
-#define SAMPLE_INTERVAL_MS 20        // ~50 Hz sampling
+#define SAMPLE_INTERVAL_MS 100        
 #define LAUNCH_DELTA 1.0             // meters above armed reference to detect launch
 #define LAND_ALT_THRESHOLD 0.3       // meters to consider landed
 #define MIN_RECORD_TIME_MS 2000      // min recording time before landing is recognized
@@ -262,11 +262,7 @@ void setup(void)
 }
 
 void loop(void)
-{
-  //getCommandChunk();
-  //doCommands();
-
-  
+{ 
   while (true){
 
     // State machine: check sensors and sample if needed

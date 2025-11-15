@@ -114,6 +114,7 @@ void printfile(const char* filename){
   // Close the file when finished reading.
   readFile.close();
 // New: persistent logging implementation
+}
 
 static bool ensureLogDir()
 {
